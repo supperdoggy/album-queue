@@ -1,3 +1,5 @@
+github.com/DigitalIndependence/models v0.0.0-20241002211208-0ae390a5f62c h1:enwJVt9uuzf+4Ro4j49OkEBOSolwSI0WTtQeRtKg5Cg=
+github.com/DigitalIndependence/models v0.0.0-20241002211208-0ae390a5f62c/go.mod h1:jpD/dIvGiS8F/G4RvvhAbP9Mi9zAu0baDJJaOwxoz68=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

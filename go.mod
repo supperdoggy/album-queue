@@ -3,6 +3,7 @@ module github.com/supperdoggy/SmartHomeServer/music-services/album-queue
 go 1.21.6
 
 require (
+	github.com/DigitalIndependence/models v0.0.0-20241002211208-0ae390a5f62c
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/satori/go.uuid v1.2.0
 	go.mongodb.org/mongo-driver v1.17.1

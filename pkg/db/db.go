@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/DigitalIndependence/models"
 	uuid "github.com/satori/go.uuid"
-	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/models"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
