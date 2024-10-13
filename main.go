@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
@@ -36,6 +37,14 @@ func main() {
 	if err != nil {
 		log.Fatal("Failed to create database connection", zap.Error(err))
 	}
+
+	// app health check api
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+		http.ListenAndServe(":8080", nil)
+	}()
 
 	log.Info("Database connection established")
 
