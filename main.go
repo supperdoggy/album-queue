@@ -48,7 +48,7 @@ func main() {
 
 	log.Info("Database connection established")
 
-	h := handler.NewHandler(db, log, bot)
+	h := handler.NewHandler(db, log, bot, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
 	bot.Handle(telebot.OnText, h.HandleText)

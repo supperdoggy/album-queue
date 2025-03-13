@@ -19,24 +19,36 @@ type Handler interface {
 }
 
 type handler struct {
-	db  db.Database
-	bot *telebot.Bot
-	log *zap.Logger
+	db        db.Database
+	whiteList []int64
+	bot       *telebot.Bot
+	log       *zap.Logger
 }
 
-func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot) Handler {
+func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, whiteList []int64) Handler {
 	return &handler{
-		db:  db,
-		log: log,
-		bot: bot,
+		db:        db,
+		log:       log,
+		bot:       bot,
+		whiteList: whiteList,
 	}
 }
 
 func (h *handler) Start(m *telebot.Message) {
+	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
+		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
+		return
+	}
+
 	h.bot.Reply(m, "Hello! I'm the album queue bot. Send me a Spotify album link and I'll add it to the download queue.")
 }
 
 func (h *handler) HandleText(m *telebot.Message) {
+	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
+		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
+		return
+	}
+
 	h.log.Info("Received message", zap.Any("message", m.Text))
 
 	// Check if the message is a valid Spotify URL
@@ -59,6 +71,11 @@ func (h *handler) HandleText(m *telebot.Message) {
 }
 
 func (h *handler) HandleQueue(m *telebot.Message) {
+	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
+		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
+		return
+	}
+
 	requests, err := h.db.GetActiveRequests(context.Background())
 	if err != nil {
 		h.log.Error("Failed to get active download requests", zap.Error(err))
@@ -80,6 +97,11 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 }
 
 func (h *handler) HandleDeactivate(m *telebot.Message) {
+	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
+		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
+		return
+	}
+
 	s := strings.Split(m.Text, " ")
 	if len(s) != 2 {
 		h.bot.Reply(m, "Invalid command. Please use /deactivate <request_id>.")
