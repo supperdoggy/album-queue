@@ -40,7 +40,7 @@ func (h *handler) Start(m *telebot.Message) {
 		return
 	}
 
-	h.bot.Reply(m, "Hello! I'm the album queue bot. Send me a Spotify album link and I'll add it to the download queue.")
+	h.bot.Reply(m, "Привіііііііііт, я бот який кочає музіку на сєрвер, скинь мені урлу на спотік і я додам в чергу на скачування ❤️")
 }
 
 func (h *handler) HandleText(m *telebot.Message) {
@@ -53,7 +53,7 @@ func (h *handler) HandleText(m *telebot.Message) {
 
 	// Check if the message is a valid Spotify URL
 	if !utils.IsValidSpotifyURL(m.Text) {
-		h.bot.Reply(m, "Invalid Spotify URL. Please send a valid Spotify album link.")
+		h.bot.Reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
 		return
 	}
 
@@ -63,11 +63,11 @@ func (h *handler) HandleText(m *telebot.Message) {
 	err := h.db.NewDownloadRequest(context.Background(), m.Text, "", m.Sender.ID)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
-		h.bot.Reply(m, "Failed to add download request to database. Please try again later.")
+		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
 		return
 	}
 
-	h.bot.Reply(m, "Download request added to the queue.")
+	h.bot.Reply(m, "Ураураура успішно додали пісню в чергу!!!!")
 }
 
 func (h *handler) HandleQueue(m *telebot.Message) {
@@ -79,16 +79,16 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 	requests, err := h.db.GetActiveRequests(context.Background())
 	if err != nil {
 		h.log.Error("Failed to get active download requests", zap.Error(err))
-		h.bot.Reply(m, "Failed to get active download requests. Please try again later.")
+		h.bot.Reply(m, "не получилося дістати чергу... 💔😭")
 		return
 	}
 
 	if len(requests) == 0 {
-		h.bot.Reply(m, "No active download requests.")
+		h.bot.Reply(m, "немає активних запитів на скачування...")
 		return
 	}
 
-	response := "Active download requests:\n"
+	response := "Активні запити на скачування:\n"
 	for _, r := range requests {
 		response += fmt.Sprintf("%s: %s - %s\n", r.ID, r.Name, r.SpotifyURL)
 	}
@@ -104,7 +104,7 @@ func (h *handler) HandleDeactivate(m *telebot.Message) {
 
 	s := strings.Split(m.Text, " ")
 	if len(s) != 2 {
-		h.bot.Reply(m, "Invalid command. Please use /deactivate <request_id>.")
+		h.bot.Reply(m, "не розумію цю команду. Пліз юзай /deactivate <request_id>.")
 		return
 	}
 
@@ -114,9 +114,9 @@ func (h *handler) HandleDeactivate(m *telebot.Message) {
 	err := h.db.DeactivateRequest(context.Background(), id)
 	if err != nil {
 		h.log.Error("Failed to deactivate request", zap.Error(err))
-		h.bot.Reply(m, "Failed to deactivate request. Please try again later.")
+		h.bot.Reply(m, "не получилося деактивувати запит. Пліз спробуй ще раз пізніше.")
 		return
 	}
 
-	h.bot.Reply(m, "Request deactivated.")
+	h.bot.Reply(m, "Запит деактивовано, всьо капец.")
 }
