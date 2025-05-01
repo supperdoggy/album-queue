@@ -16,6 +16,7 @@ type Handler interface {
 	HandleText(m *telebot.Message)
 	HandleQueue(m *telebot.Message)
 	HandleDeactivate(m *telebot.Message)
+	HandlePlaylist(m *telebot.Message)
 }
 
 type handler struct {
@@ -119,4 +120,36 @@ func (h *handler) HandleDeactivate(m *telebot.Message) {
 	}
 
 	h.bot.Reply(m, "Запит деактивовано, всьо капец.")
+}
+
+func (h *handler) HandlePlaylist(m *telebot.Message) {
+	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
+		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
+		return
+	}
+
+	h.log.Info("Received playlist request", zap.Any("message", m.Text))
+
+	// get playlist link
+
+	msg := strings.Split(m.Text, " ")
+	if len(msg) != 2 {
+		h.bot.Reply(m, "не розумію цю команду. Пліз юзай /playlist <playlist_id>.")
+		return
+	}
+
+	playlistURL := msg[1]
+
+	if !utils.IsValidSpotifyURL(playlistURL) {
+		h.bot.Reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
+		return
+	}
+
+	if err := h.db.NewPlaylistRequest(context.Background(), playlistURL, m.Sender.ID); err != nil {
+		h.log.Error("Failed to add playlist request to database", zap.Error(err))
+		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
+		return
+	}
+
+	h.bot.Reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
 }

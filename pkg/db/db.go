@@ -16,6 +16,7 @@ type Database interface {
 	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	DeactivateRequest(ctx context.Context, id string) error
+	NewPlaylistRequest(ctx context.Context, url string, creatorID int64) error
 }
 
 type db struct {
@@ -24,6 +25,7 @@ type db struct {
 
 	// Collections
 	downloadQueueRequestCollection *mongo.Collection
+	playlistRequestCollection      *mongo.Collection
 }
 
 func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Database, error) {
@@ -37,6 +39,7 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 		log:  log,
 
 		downloadQueueRequestCollection: conn.Database(dbname).Collection("download-queue-requests"),
+		playlistRequestCollection:      conn.Database(dbname).Collection("playlist-requests"),
 	}, nil
 }
 
@@ -52,6 +55,24 @@ func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID
 	}
 
 	_, err := d.downloadQueueRequestCollection.InsertOne(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *db) NewPlaylistRequest(ctx context.Context, url string, creatorID int64) error {
+	id := uuid.NewV4()
+	request := models.PlaylistRequest{
+		SpotifyURL: url,
+		Active:     true,
+		ID:         id.String(),
+		CreatedAt:  time.Now().Unix(),
+		CreatorID:  creatorID,
+	}
+
+	_, err := d.playlistRequestCollection.InsertOne(ctx, request)
 	if err != nil {
 		return err
 	}

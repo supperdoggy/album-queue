@@ -54,6 +54,7 @@ func main() {
 	bot.Handle(telebot.OnText, h.HandleText)
 	bot.Handle("/queue", h.HandleQueue)
 	bot.Handle("/deactivate", h.HandleDeactivate)
+	bot.Handle("/p", h.HandlePlaylist)
 
 	log.Info("Bot is running", zap.String("username", bot.Me.Username))
 	bot.Poller = &telebot.LongPoller{Timeout: 10}

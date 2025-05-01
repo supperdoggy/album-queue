@@ -4,6 +4,8 @@ go 1.23.0
 
 toolchain go1.23.4
 
+replace github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models 
+
 require (
 	github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8
 	github.com/kelseyhightower/envconfig v1.4.0
