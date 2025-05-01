@@ -4,10 +4,10 @@ go 1.23.0
 
 toolchain go1.23.4
 
-replace github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models 
+// replace github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8 => /Users/maks/go/src/github.com/supperdoggy/SmartHomeServer/music-services/models
 
 require (
-	github.com/DigitalIndependence/models v0.0.0-20250326215315-1cdda12bbbe8
+	github.com/DigitalIndependence/models v0.0.0-20250501182004-10ac2121267e
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/satori/go.uuid v1.2.0
 	go.mongodb.org/mongo-driver v1.17.3
