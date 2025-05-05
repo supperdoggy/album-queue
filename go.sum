@@ -35,6 +35,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/DigitalIndependence/models v0.0.0-20250505133726-71d1bb1027ce h1:r6cZYM0ibvQkiGVec88mwoTDoeqgEsVmGVaoFuW7MVg=
 github.com/DigitalIndependence/models v0.0.0-20250505133726-71d1bb1027ce/go.mod h1:MHp3HimW6CI8LlZZ7f4ZEtY3aqygU3MM/5wotvVDbQw=
+github.com/DigitalIndependence/models v0.0.0-20250505153036-c040986dc9f6 h1:wFc98ij8QzmRbXhzAoMk+zZR114OjkKqnD48dBU9uvw=
+github.com/DigitalIndependence/models v0.0.0-20250505153036-c040986dc9f6/go.mod h1:MHp3HimW6CI8LlZZ7f4ZEtY3aqygU3MM/5wotvVDbQw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
