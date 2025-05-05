@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DigitalIndependence/models/spotify"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/utils"
 	"go.uber.org/zap"
@@ -20,18 +21,20 @@ type Handler interface {
 }
 
 type handler struct {
-	db        db.Database
-	whiteList []int64
-	bot       *telebot.Bot
-	log       *zap.Logger
+	db             db.Database
+	spotifyService spotify.SpotifyService
+	whiteList      []int64
+	bot            *telebot.Bot
+	log            *zap.Logger
 }
 
-func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, whiteList []int64) Handler {
+func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, spotifyService spotify.SpotifyService, whiteList []int64) Handler {
 	return &handler{
-		db:        db,
-		log:       log,
-		bot:       bot,
-		whiteList: whiteList,
+		db:             db,
+		log:            log,
+		bot:            bot,
+		whiteList:      whiteList,
+		spotifyService: spotifyService,
 	}
 }
 
@@ -58,10 +61,15 @@ func (h *handler) HandleText(m *telebot.Message) {
 		return
 	}
 
-	// TODO: get name from spotify
+	name, err := h.spotifyService.GetObjectName(context.Background(), m.Text)
+	if err != nil {
+		h.log.Error("Failed to get object name from Spotify", zap.Error(err))
+		h.bot.Reply(m, "не получилося дістати назву з спотіфай... 💔😭")
+		return
+	}
 
 	// Add the download request to the database
-	err := h.db.NewDownloadRequest(context.Background(), m.Text, "", m.Sender.ID)
+	err = h.db.NewDownloadRequest(context.Background(), m.Text, name, m.Sender.ID)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
 		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
@@ -91,7 +99,7 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 
 	response := "Активні запити на скачування:\n"
 	for _, r := range requests {
-		response += fmt.Sprintf("%s: %s - %s\n", r.ID, r.Name, r.SpotifyURL)
+		response += fmt.Sprintf("%s: %s. Active: %v, SyncCount: %v, Errored: %v, RetryCount: %v\n", r.ID, r.Name, r.Active, r.SyncCount, r.Errored, r.RetryCount)
 	}
 
 	h.bot.Reply(m, response)
