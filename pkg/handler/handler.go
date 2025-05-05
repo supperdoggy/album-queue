@@ -65,7 +65,6 @@ func (h *handler) HandleText(m *telebot.Message) {
 	if err != nil {
 		h.log.Error("Failed to get object name from Spotify", zap.Error(err))
 		h.bot.Reply(m, "не получилося дістати назву з спотіфай... 💔😭")
-		return
 	}
 
 	// Add the download request to the database
