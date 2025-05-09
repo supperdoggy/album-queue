@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/DigitalIndependence/models/spotify"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/handler"
@@ -49,9 +48,9 @@ func main() {
 
 	log.Info("Database connection established")
 
-	spotifyService := spotify.NewSpotifyService(ctx, cfg.Spotify.ClientID, cfg.Spotify.ClientSecret, log)
+	// spotifyService := spotify.NewSpotifyService(ctx, cfg.Spotify.ClientID, cfg.Spotify.ClientSecret, log)
 
-	h := handler.NewHandler(db, log, bot, spotifyService, cfg.BotWhitelist)
+	h := handler.NewHandler(db, log, bot, nil, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
 	bot.Handle(telebot.OnText, h.HandleText)

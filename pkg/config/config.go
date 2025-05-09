@@ -2,13 +2,13 @@ package config
 
 import "github.com/kelseyhightower/envconfig"
 
-type SpotifyConfig struct {
-	ClientID     string `envconfig:"SPOTIFY_CLIENT_ID" required:"true"`
-	ClientSecret string `envconfig:"SPOTIFY_CLIENT_SECRET" required:"true"`
-}
+// type SpotifyConfig struct {
+// 	ClientID     string `envconfig:"SPOTIFY_CLIENT_ID" required:"true"`
+// 	ClientSecret string `envconfig:"SPOTIFY_CLIENT_SECRET" required:"true"`
+// }
 
 type Config struct {
-	Spotify      SpotifyConfig
+	// Spotify      SpotifyConfig
 	DatabaseURL  string `envconfig:"DATABASE_URL" required:"true"`
 	DatabaseName string `envconfig:"DATABASE_NAME" required:"true"`
 

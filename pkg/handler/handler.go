@@ -21,20 +21,20 @@ type Handler interface {
 }
 
 type handler struct {
-	db             db.Database
-	spotifyService spotify.SpotifyService
-	whiteList      []int64
-	bot            *telebot.Bot
-	log            *zap.Logger
+	db db.Database
+	// spotifyService spotify.SpotifyService
+	whiteList []int64
+	bot       *telebot.Bot
+	log       *zap.Logger
 }
 
 func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, spotifyService spotify.SpotifyService, whiteList []int64) Handler {
 	return &handler{
-		db:             db,
-		log:            log,
-		bot:            bot,
-		whiteList:      whiteList,
-		spotifyService: spotifyService,
+		db:        db,
+		log:       log,
+		bot:       bot,
+		whiteList: whiteList,
+		// spotifyService: spotifyService,
 	}
 }
 
@@ -61,14 +61,16 @@ func (h *handler) HandleText(m *telebot.Message) {
 		return
 	}
 
-	name, err := h.spotifyService.GetObjectName(context.Background(), m.Text)
-	if err != nil {
-		h.log.Error("Failed to get object name from Spotify", zap.Error(err))
-		h.bot.Reply(m, "не получилося дістати назву з спотіфай... 💔😭")
-	}
+	// name, err := h.spotifyService.GetObjectName(context.Background(), m.Text)
+	// if err != nil {
+	// 	h.log.Error("Failed to get object name from Spotify", zap.Error(err))
+	// 	h.bot.Reply(m, "не получилося дістати назву з спотіфай... 💔😭")
+	// }
+
+	name := ""
 
 	// Add the download request to the database
-	err = h.db.NewDownloadRequest(context.Background(), m.Text, name, m.Sender.ID)
+	err := h.db.NewDownloadRequest(context.Background(), m.Text, name, m.Sender.ID)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
 		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
