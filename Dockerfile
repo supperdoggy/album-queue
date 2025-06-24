@@ -20,7 +20,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN GOOS=linux GOARCH=amd64 go build -o main .
 
 # Use a minimal base image for the final stage
 FROM alpine:3.18

@@ -16,7 +16,7 @@ type Database interface {
 	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64) error
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	DeactivateRequest(ctx context.Context, id string) error
-	NewPlaylistRequest(ctx context.Context, url string, creatorID int64) error
+	NewPlaylistRequest(ctx context.Context, url string, creatorID int64, noPull bool) error
 }
 
 type db struct {
@@ -62,7 +62,7 @@ func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID
 	return nil
 }
 
-func (d *db) NewPlaylistRequest(ctx context.Context, url string, creatorID int64) error {
+func (d *db) NewPlaylistRequest(ctx context.Context, url string, creatorID int64, noPull bool) error {
 	id := uuid.NewV4()
 	request := models.PlaylistRequest{
 		SpotifyURL: url,
@@ -70,6 +70,7 @@ func (d *db) NewPlaylistRequest(ctx context.Context, url string, creatorID int64
 		ID:         id.String(),
 		CreatedAt:  time.Now().Unix(),
 		CreatorID:  creatorID,
+		NoPull:     noPull,
 	}
 
 	_, err := d.playlistRequestCollection.InsertOne(ctx, request)
