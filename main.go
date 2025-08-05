@@ -48,9 +48,7 @@ func main() {
 
 	log.Info("Database connection established")
 
-	// spotifyService := spotify.NewSpotifyService(ctx, cfg.Spotify.ClientID, cfg.Spotify.ClientSecret, log)
-
-	h := handler.NewHandler(db, log, bot, nil, cfg.BotWhitelist)
+	h := handler.NewHandler(db, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
 	bot.Handle(telebot.OnText, h.HandleText)

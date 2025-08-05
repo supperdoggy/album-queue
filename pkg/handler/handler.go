@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DigitalIndependence/models/spotify"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/utils"
 	"go.uber.org/zap"
@@ -24,18 +23,19 @@ type Handler interface {
 type handler struct {
 	db db.Database
 	// spotifyService spotify.SpotifyService
-	whiteList []int64
-	bot       *telebot.Bot
-	log       *zap.Logger
+	whiteList   []int64
+	bot         *telebot.Bot
+	log         *zap.Logger
+	doneWebhook string
 }
 
-func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, spotifyService spotify.SpotifyService, whiteList []int64) Handler {
+func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, doneWebhook string, whiteList []int64) Handler {
 	return &handler{
-		db:        db,
-		log:       log,
-		bot:       bot,
-		whiteList: whiteList,
-		// spotifyService: spotifyService,
+		db:          db,
+		log:         log,
+		bot:         bot,
+		whiteList:   whiteList,
+		doneWebhook: doneWebhook,
 	}
 }
 
