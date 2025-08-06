@@ -78,6 +78,8 @@ func (h *handler) HandleText(m *telebot.Message) {
 		return
 	}
 
+	utils.SendDoneWebhook(h.doneWebhook)
+
 	h.bot.Reply(m, "Ураураура успішно додали пісню в чергу!!!!")
 }
 
@@ -161,6 +163,8 @@ func (h *handler) HandlePlaylist(m *telebot.Message) {
 		return
 	}
 
+	utils.SendDoneWebhook(h.doneWebhook)
+
 	h.bot.Reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
 }
 
@@ -192,6 +196,8 @@ func (h *handler) HandlePlaylistNoPull(m *telebot.Message) {
 		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
 		return
 	}
+
+	utils.SendDoneWebhook(h.doneWebhook)
 
 	h.bot.Reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
 }
