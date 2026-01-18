@@ -75,24 +75,36 @@ func main() {
 	bot.Handle("/pnp", h.HandlePlaylistNoPull)
 
 	// Graceful shutdown
+	shutdownDone := make(chan struct{})
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
 
 		log.Info("Shutting down...")
-		bot.Stop()
 
+		// Shutdown HTTP server first while bot is still running
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
 
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			log.Error("HTTP server shutdown error", zap.Error(err))
 		}
+		log.Info("HTTP server stopped")
 
 		cancel()
+
+		// Stop bot last - this unblocks bot.Start() in main goroutine
+		bot.Stop()
+		log.Info("Bot stopped")
+
+		close(shutdownDone)
 	}()
 
 	log.Info("Bot is running", zap.String("username", bot.Me.Username))
 	bot.Start()
+
+	// Wait for shutdown to complete before exiting
+	<-shutdownDone
+	log.Info("Shutdown complete")
 }
