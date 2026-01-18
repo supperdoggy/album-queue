@@ -39,13 +39,25 @@ func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, doneWebhook s
 	}
 }
 
+func (h *handler) reply(m *telebot.Message, text string) {
+	if _, err := h.bot.Reply(m, text); err != nil {
+		h.log.Error("Failed to send reply", zap.Error(err))
+	}
+}
+
+func (h *handler) sendWebhook() {
+	if err := utils.SendDoneWebhook(h.doneWebhook); err != nil {
+		h.log.Error("Failed to send webhook", zap.Error(err))
+	}
+}
+
 func (h *handler) Start(m *telebot.Message) {
 	if !utils.InWhiteList(m.Sender.ID, h.whiteList) {
 		h.log.Info("Unauthorized user", zap.Int64("user_id", m.Sender.ID))
 		return
 	}
 
-	h.bot.Reply(m, "Привіііііііііт, я бот який кочає музіку на сєрвер, скинь мені урлу на спотік і я додам в чергу на скачування ❤️")
+	h.reply(m, "Привіііііііііт, я бот який кочає музіку на сєрвер, скинь мені урлу на спотік і я додам в чергу на скачування ❤️")
 }
 
 func (h *handler) HandleText(m *telebot.Message) {
@@ -58,15 +70,9 @@ func (h *handler) HandleText(m *telebot.Message) {
 
 	// Check if the message is a valid Spotify URL
 	if !utils.IsValidSpotifyURL(m.Text) {
-		h.bot.Reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
+		h.reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
 		return
 	}
-
-	// name, err := h.spotifyService.GetObjectName(context.Background(), m.Text)
-	// if err != nil {
-	// 	h.log.Error("Failed to get object name from Spotify", zap.Error(err))
-	// 	h.bot.Reply(m, "не получилося дістати назву з спотіфай... 💔😭")
-	// }
 
 	name := ""
 
@@ -74,13 +80,13 @@ func (h *handler) HandleText(m *telebot.Message) {
 	err := h.db.NewDownloadRequest(context.Background(), m.Text, name, m.Sender.ID)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
-		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
+		h.reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
 		return
 	}
 
-	utils.SendDoneWebhook(h.doneWebhook)
+	h.sendWebhook()
 
-	h.bot.Reply(m, "Ураураура успішно додали пісню в чергу!!!!")
+	h.reply(m, "Ураураура успішно додали пісню в чергу!!!!")
 }
 
 func (h *handler) HandleQueue(m *telebot.Message) {
@@ -92,12 +98,12 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 	requests, err := h.db.GetActiveRequests(context.Background())
 	if err != nil {
 		h.log.Error("Failed to get active download requests", zap.Error(err))
-		h.bot.Reply(m, "не получилося дістати чергу... 💔😭")
+		h.reply(m, "не получилося дістати чергу... 💔😭")
 		return
 	}
 
 	if len(requests) == 0 {
-		h.bot.Reply(m, "немає активних запитів на скачування...")
+		h.reply(m, "немає активних запитів на скачування...")
 		return
 	}
 
@@ -106,7 +112,7 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 		response += fmt.Sprintf("%s: %s. Active: %v, SyncCount: %v, Errored: %v, RetryCount: %v\n", r.ID, r.Name, r.Active, r.SyncCount, r.Errored, r.RetryCount)
 	}
 
-	h.bot.Reply(m, response)
+	h.reply(m, response)
 }
 
 func (h *handler) HandleDeactivate(m *telebot.Message) {
@@ -117,7 +123,7 @@ func (h *handler) HandleDeactivate(m *telebot.Message) {
 
 	s := strings.Split(m.Text, " ")
 	if len(s) != 2 {
-		h.bot.Reply(m, "не розумію цю команду. Пліз юзай /deactivate <request_id>.")
+		h.reply(m, "не розумію цю команду. Пліз юзай /deactivate <request_id>.")
 		return
 	}
 
@@ -127,11 +133,11 @@ func (h *handler) HandleDeactivate(m *telebot.Message) {
 	err := h.db.DeactivateRequest(context.Background(), id)
 	if err != nil {
 		h.log.Error("Failed to deactivate request", zap.Error(err))
-		h.bot.Reply(m, "не получилося деактивувати запит. Пліз спробуй ще раз пізніше.")
+		h.reply(m, "не получилося деактивувати запит. Пліз спробуй ще раз пізніше.")
 		return
 	}
 
-	h.bot.Reply(m, "Запит деактивовано, всьо капец.")
+	h.reply(m, "Запит деактивовано, всьо капец.")
 }
 
 func (h *handler) HandlePlaylist(m *telebot.Message) {
@@ -142,30 +148,28 @@ func (h *handler) HandlePlaylist(m *telebot.Message) {
 
 	h.log.Info("Received playlist request", zap.Any("message", m.Text))
 
-	// get playlist link
-
 	msg := strings.Split(m.Text, " ")
 	if len(msg) != 2 {
-		h.bot.Reply(m, "не розумію цю команду. Пліз юзай /playlist <playlist_id>.")
+		h.reply(m, "не розумію цю команду. Пліз юзай /playlist <playlist_id>.")
 		return
 	}
 
 	playlistURL := msg[1]
 
 	if !utils.IsValidSpotifyURL(playlistURL) {
-		h.bot.Reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
+		h.reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
 		return
 	}
 
 	if err := h.db.NewPlaylistRequest(context.Background(), playlistURL, m.Sender.ID, false); err != nil {
 		h.log.Error("Failed to add playlist request to database", zap.Error(err))
-		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
+		h.reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
 		return
 	}
 
-	utils.SendDoneWebhook(h.doneWebhook)
+	h.sendWebhook()
 
-	h.bot.Reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
+	h.reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
 }
 
 func (h *handler) HandlePlaylistNoPull(m *telebot.Message) {
@@ -176,28 +180,26 @@ func (h *handler) HandlePlaylistNoPull(m *telebot.Message) {
 
 	h.log.Info("Received playlist request", zap.Any("message", m.Text))
 
-	// get playlist link
-
 	msg := strings.Split(m.Text, " ")
 	if len(msg) != 2 {
-		h.bot.Reply(m, "не розумію цю команду. Пліз юзай /playlist <playlist_id>.")
+		h.reply(m, "не розумію цю команду. Пліз юзай /playlist <playlist_id>.")
 		return
 	}
 
 	playlistURL := msg[1]
 
 	if !utils.IsValidSpotifyURL(playlistURL) {
-		h.bot.Reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
+		h.reply(m, "о ніііііі, це не посилання на спотіфай.... 💔😭")
 		return
 	}
 
 	if err := h.db.NewPlaylistRequest(context.Background(), playlistURL, m.Sender.ID, true); err != nil {
 		h.log.Error("Failed to add playlist request to database", zap.Error(err))
-		h.bot.Reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
+		h.reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
 		return
 	}
 
-	utils.SendDoneWebhook(h.doneWebhook)
+	h.sendWebhook()
 
-	h.bot.Reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
+	h.reply(m, "Ураураура успішно додали плейлист в чергу!!!!")
 }
