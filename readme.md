@@ -1,104 +1,91 @@
-# Spotify Link Collector Bot
+# album-queue
 
-## Overview
+[![CI](https://github.com/supperdoggy/album-queue/actions/workflows/ci.yml/badge.svg)](https://github.com/supperdoggy/album-queue/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/supperdoggy/album-queue)](https://goreportcard.com/report/github.com/supperdoggy/album-queue)
 
-This is a Telegram bot written in Golang that collects Spotify playlist, album, and song links, and adds them to a queue for download. The bot listens for user inputs, processes Spotify links, and queues them in a designated download system.
+A Telegram bot that collects Spotify playlist, album, and song links and queues them for download.
 
 ## Features
 
-- Accepts Spotify links for playlists, albums, or songs.
-- Automatically detects and validates Spotify URLs.
-- Queues the links for download.
-- Provides feedback to the user on whether the link was successfully added to the queue.
-- Logs all incoming links and actions for auditing and debugging purposes.
-  
+- 🎵 Accepts Spotify links for playlists, albums, or songs
+- ✅ Automatically validates Spotify URLs
+- 📋 Queue management with `/queue` command
+- 🔒 Whitelist-based access control
+- 🔔 Webhook notifications when new items are queued
+- ❤️ Health check endpoint for monitoring
+
 ## Prerequisites
 
-- Golang 1.21 or above
-- A Spotify API client with proper access tokens and permissions
-- A Telegram bot token (generated from the BotFather in Telegram)
-- Redis or any queueing system to manage download requests (optional)
+- Go 1.23+
+- MongoDB
+- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | ✅ | MongoDB connection string |
+| `DATABASE_NAME` | ✅ | MongoDB database name |
+| `BOT_TOKEN` | ✅ | Telegram bot token |
+| `BOT_WHITELIST` | ✅ | Comma-separated list of allowed Telegram user IDs |
+| `WEBHOOK_URL` | ✅ | URL to call when new items are queued |
 
 ## Installation
 
-1. Clone the repository:
+```bash
+# Clone the repository
+git clone https://github.com/supperdoggy/album-queue.git
+cd album-queue
 
-    ```bash
-    git clone git@github.com:DigitalIndependence/album-queue.git
-    cd album-queue
-    ```
+# Install dependencies
+go mod download
 
-2. Install the required dependencies:
+# Build
+go build -o album-queue .
 
-    ```bash
-    go mod tidy
-    ```
+# Run
+./album-queue
+```
 
-3. Set up environment variables:
-    
-    You can create a `.env` file in the project root directory for the following variables:
-    
-    ```env
-    TELEGRAM_BOT_TOKEN=<your-telegram-bot-token>
-    SPOTIFY_CLIENT_ID=<your-spotify-client-id>
-    SPOTIFY_CLIENT_SECRET=<your-spotify-client-secret>
-    REDIS_URL=<redis-url-if-used>
-    QUEUE_NAME=<name-of-the-queue>
-    ```
+## Docker
 
-4. Run the bot:
+```bash
+# Build image
+docker build -t album-queue .
 
-    ```bash
-    go run main.go
-    ```
+# Run
+docker run -d \
+  -e DATABASE_URL="mongodb://..." \
+  -e DATABASE_NAME="music-services" \
+  -e BOT_TOKEN="your-bot-token" \
+  -e BOT_WHITELIST="123456789,987654321" \
+  -e WEBHOOK_URL="http://spotdl-wapper:8080/trigger" \
+  -p 8080:8080 \
+  album-queue
+```
 
-## Usage
+## Bot Commands
 
-1. Add the bot to your Telegram and start a chat.
-2. Send any Spotify playlist, album, or song link.
-3. The bot will validate the link, and if it's correct, add it to the download queue.
-4. You will receive a confirmation message if the link was added to the queue successfully.
+| Command | Description |
+|---------|-------------|
+| `/start` | Welcome message |
+| `/queue` | Show active download requests |
+| `/deactivate <id>` | Deactivate a specific request |
+| `/p <url>` | Add a playlist to the queue |
+| `/pnp <url>` | Add a playlist without pulling missing songs |
 
-## Example Commands
+Simply send any Spotify URL to add it to the download queue.
 
-- Send a Spotify song link:
+## Health Endpoints
 
-    ```
-    https://open.spotify.com/track/1234567890abcdefghij
-    ```
+- `GET /health` - Returns `OK` if the service is running
+- `GET /ready` - Returns `Ready` if the service is ready to accept requests
 
-- Send a Spotify album link:
+## Related Projects
 
-    ```
-    https://open.spotify.com/album/abcdefghij1234567890
-    ```
-
-- Send a Spotify playlist link:
-
-    ```
-    https://open.spotify.com/playlist/abcdefghij0987654321
-    ```
-
-## Queue System
-
-This bot uses a queue to manage download requests. By default, it supports Redis as the queueing system. If you prefer another queue system, make sure to update the relevant code in the `queue.go` file.
-
-## Logging
-
-Logs are generated for each incoming Spotify link, including whether the link was valid and successfully added to the queue. Check the logs for debugging or to monitor usage.
-
-## Spotify API
-
-To interact with Spotify, the bot uses the [Spotify Web API](https://developer.spotify.com/documentation/web-api/). Ensure you have set up your Spotify Developer account and generated the appropriate API credentials. 
-
-## Contributing
-
-1. Fork the repository.
-2. Create your feature branch: `git checkout -b feature/my-new-feature`
-3. Commit your changes: `git commit -am 'Add some feature'`
-4. Push to the branch: `git push origin feature/my-new-feature`
-5. Submit a pull request!
+- [spot-models](https://github.com/supperdoggy/spot-models) - Shared data models
+- [spotdl-wapper](https://github.com/supperdoggy/spotdl-wapper) - Music download processor
 
 ## License
 
-This project is licensed under the MIT License.
+MIT

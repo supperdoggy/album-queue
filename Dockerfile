@@ -2,13 +2,9 @@
 FROM golang:1.23-alpine AS builder
 
 # Install git and other dependencies
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
-
-# Add GitHub token to authenticate private repositories during go mod download
-ARG GITHUB_TOKEN
-RUN git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
 
 # Copy go.mod and go.sum files to the workspace
 COPY go.mod go.sum ./
@@ -20,25 +16,29 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN GOOS=linux GOARCH=amd64 go build -o main .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o main .
 
 # Use a minimal base image for the final stage
-FROM alpine:3.18
+FROM alpine:3.20
 
 WORKDIR /app
 
-# Install git in the final stage as well
-RUN apk add --no-cache git
+# Install only runtime dependencies (no git needed)
+RUN apk add --no-cache ca-certificates tzdata
 
-# Add GitHub token to authenticate private repositories
-ARG GITHUB_TOKEN
-RUN git config --global url."https://${GITHUB_TOKEN}:@github.com/".insteadOf "https://github.com/"
+# Create non-root user for security
+RUN adduser -D -g '' appuser
+USER appuser
 
 # Copy the pre-built binary from the builder stage
 COPY --from=builder /app/main .
 
-# Expose port (optional, if your app listens on a specific port)
+# Expose port
 EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the executable
 CMD ["./main"]
