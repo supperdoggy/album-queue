@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
@@ -12,43 +16,56 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	log, err := zap.NewDevelopment()
+	log, err := zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}
+	defer log.Sync()
 
 	cfg, err := config.NewConfig()
 	if err != nil {
 		log.Fatal("Failed to load config", zap.Error(err))
 	}
 
-	log.Info("Loaded config", zap.Any("config", cfg))
+	log.Info("Loaded config")
 
 	bot, err := telebot.NewBot(telebot.Settings{
-		Token: cfg.BotToken,
+		Token:  cfg.BotToken,
+		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 	})
 	if err != nil {
 		log.Fatal("Failed to create bot", zap.Error(err))
 	}
 
-	db, err := db.NewDatabase(ctx, log, cfg.DatabaseURL, cfg.DatabaseName)
+	database, err := db.NewDatabase(ctx, log, cfg.DatabaseURL, cfg.DatabaseName)
 	if err != nil {
 		log.Fatal("Failed to create database connection", zap.Error(err))
 	}
 
-	// app health check api
-	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		})
-		http.ListenAndServe(":8080", nil)
-	}()
-
 	log.Info("Database connection established")
 
-	h := handler.NewHandler(db, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
+	// Health check server with graceful shutdown
+	srv := &http.Server{Addr: ":8080"}
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+	http.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Ready"))
+	})
+
+	go func() {
+		log.Info("Starting health check server on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("Health check server error", zap.Error(err))
+		}
+	}()
+
+	h := handler.NewHandler(database, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
 	bot.Handle(telebot.OnText, h.HandleText)
@@ -57,7 +74,25 @@ func main() {
 	bot.Handle("/p", h.HandlePlaylist)
 	bot.Handle("/pnp", h.HandlePlaylistNoPull)
 
+	// Graceful shutdown
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		log.Info("Shutting down...")
+		bot.Stop()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Error("HTTP server shutdown error", zap.Error(err))
+		}
+
+		cancel()
+	}()
+
 	log.Info("Bot is running", zap.String("username", bot.Me.Username))
-	bot.Poller = &telebot.LongPoller{Timeout: 10}
 	bot.Start()
 }

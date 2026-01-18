@@ -7,12 +7,11 @@ toolchain go1.23.4
 replace github.com/supperdoggy/spot-models => ../models
 
 require (
-	github.com/supperdoggy/spot-models v0.0.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/satori/go.uuid v1.2.0
+	github.com/supperdoggy/spot-models v0.0.0
 	go.mongodb.org/mongo-driver v1.17.3
 	go.uber.org/zap v1.27.0
-	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
 	gopkg.in/tucnak/telebot.v2 v2.5.0
 )
 
