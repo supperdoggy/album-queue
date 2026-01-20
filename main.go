@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 	"os/signal"
@@ -60,6 +61,16 @@ func main() {
 	http.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Ready"))
+	})
+	http.HandleFunc("/stats", func(w http.ResponseWriter, r *http.Request) {
+		stats, err := database.GetStats(r.Context())
+		if err != nil {
+			log.Error("Failed to get stats", zap.Error(err))
+			http.Error(w, "Failed to get stats", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(stats)
 	})
 
 	go func() {

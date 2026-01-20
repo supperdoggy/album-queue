@@ -23,6 +23,14 @@ type Database interface {
 	UpdateDownloadRequest(ctx context.Context, request models.DownloadQueueRequest) error
 	Close(ctx context.Context) error
 	Ping(ctx context.Context) error
+	GetStats(ctx context.Context) (*Stats, error)
+}
+
+type Stats struct {
+	TotalMusicFiles       int64 `json:"total_music_files"`
+	ActiveDownloadQueue   int64 `json:"active_download_queue"`
+	TotalDownloadRequests int64 `json:"total_download_requests"`
+	ActivePlaylists       int64 `json:"active_playlists"`
 }
 
 type db struct {
@@ -199,4 +207,38 @@ func (d *db) UpdateDownloadRequest(ctx context.Context, request models.DownloadQ
 	}
 
 	return nil
+}
+
+func (d *db) GetStats(ctx context.Context) (*Stats, error) {
+	stats := &Stats{}
+
+	// Count total music files
+	musicCount, err := d.musicFilesCollection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to count music files: %w", err)
+	}
+	stats.TotalMusicFiles = musicCount
+
+	// Count active download requests
+	activeQueue, err := d.downloadQueueRequestCollection.CountDocuments(ctx, bson.M{"active": true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to count active downloads: %w", err)
+	}
+	stats.ActiveDownloadQueue = activeQueue
+
+	// Count total download requests
+	totalDownloads, err := d.downloadQueueRequestCollection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to count total downloads: %w", err)
+	}
+	stats.TotalDownloadRequests = totalDownloads
+
+	// Count active playlists
+	activePlaylists, err := d.playlistRequestCollection.CountDocuments(ctx, bson.M{"active": true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to count active playlists: %w", err)
+	}
+	stats.ActivePlaylists = activePlaylists
+
+	return stats, nil
 }
