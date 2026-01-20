@@ -11,6 +11,7 @@ import (
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/config"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/handler"
+	"github.com/supperdoggy/spot-models/spotify"
 	"go.uber.org/zap"
 	"gopkg.in/tucnak/telebot.v2"
 )
@@ -47,6 +48,9 @@ func main() {
 
 	log.Info("Database connection established")
 
+	spotifyService := spotify.NewSpotifyService(ctx, cfg.SpotifyClientID, cfg.SpotifyClientSecret, log)
+	log.Info("Spotify service initialized")
+
 	// Health check server with graceful shutdown
 	srv := &http.Server{Addr: ":8080"}
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +69,7 @@ func main() {
 		}
 	}()
 
-	h := handler.NewHandler(database, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
+	h := handler.NewHandler(database, spotifyService, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
 	bot.Handle(telebot.OnText, h.HandleText)

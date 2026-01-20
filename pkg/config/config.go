@@ -10,6 +10,9 @@ type Config struct {
 	BotWhitelist []int64 `envconfig:"BOT_WHITELIST" required:"true"`
 
 	WebhookURL string `envconfig:"WEBHOOK_URL" required:"true"`
+
+	SpotifyClientID     string `envconfig:"SPOTIFY_CLIENT_ID" required:"true"`
+	SpotifyClientSecret string `envconfig:"SPOTIFY_CLIENT_SECRET" required:"true"`
 }
 
 func NewConfig() (*Config, error) {

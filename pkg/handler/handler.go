@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/db"
 	"github.com/supperdoggy/SmartHomeServer/music-services/album-queue/pkg/utils"
+	models "github.com/supperdoggy/spot-models"
+	"github.com/supperdoggy/spot-models/spotify"
 	"go.uber.org/zap"
 	"gopkg.in/tucnak/telebot.v2"
 )
@@ -21,21 +24,22 @@ type Handler interface {
 }
 
 type handler struct {
-	db db.Database
-	// spotifyService spotify.SpotifyService
-	whiteList   []int64
-	bot         *telebot.Bot
-	log         *zap.Logger
-	doneWebhook string
+	db             db.Database
+	spotifyService spotify.SpotifyService
+	whiteList      []int64
+	bot            *telebot.Bot
+	log            *zap.Logger
+	doneWebhook    string
 }
 
-func NewHandler(db db.Database, log *zap.Logger, bot *telebot.Bot, doneWebhook string, whiteList []int64) Handler {
+func NewHandler(db db.Database, spotifyService spotify.SpotifyService, log *zap.Logger, bot *telebot.Bot, doneWebhook string, whiteList []int64) Handler {
 	return &handler{
-		db:          db,
-		log:         log,
-		bot:         bot,
-		whiteList:   whiteList,
-		doneWebhook: doneWebhook,
+		db:             db,
+		spotifyService: spotifyService,
+		log:            log,
+		bot:            bot,
+		whiteList:      whiteList,
+		doneWebhook:    doneWebhook,
 	}
 }
 
@@ -74,10 +78,27 @@ func (h *handler) HandleText(m *telebot.Message) {
 		return
 	}
 
-	name := ""
+	ctx := context.Background()
+
+	// Get object name and track count from Spotify API
+	name, err := h.spotifyService.GetObjectName(ctx, m.Text)
+	if err != nil {
+		h.log.Error("Failed to get object name from Spotify", zap.Error(err))
+		h.reply(m, "не получилось отримати інформацію зі спотіфай, спробуй ще раз...")
+		return
+	}
+
+	trackCount, trackMetadata, err := h.spotifyService.GetTrackCount(ctx, m.Text)
+	if err != nil {
+		h.log.Error("Failed to get track count from Spotify", zap.Error(err))
+		h.reply(m, "не получилось отримати кількість треків, але додав в чергу...")
+		// Continue with empty track data
+		trackCount = 0
+		trackMetadata = nil
+	}
 
 	// Add the download request to the database
-	err := h.db.NewDownloadRequest(context.Background(), m.Text, name, m.Sender.ID)
+	err = h.db.NewDownloadRequest(ctx, m.Text, name, m.Sender.ID, trackCount, trackMetadata)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
 		h.reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
@@ -86,7 +107,7 @@ func (h *handler) HandleText(m *telebot.Message) {
 
 	h.sendWebhook()
 
-	h.reply(m, "Ураураура успішно додали пісню в чергу!!!!")
+	h.reply(m, fmt.Sprintf("Ураураура успішно додали %s в чергу! (Треків: %d) ❤️", name, trackCount))
 }
 
 func (h *handler) HandleQueue(m *telebot.Message) {
@@ -95,7 +116,8 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 		return
 	}
 
-	requests, err := h.db.GetActiveRequests(context.Background())
+	ctx := context.Background()
+	requests, err := h.db.GetActiveRequests(ctx)
 	if err != nil {
 		h.log.Error("Failed to get active download requests", zap.Error(err))
 		h.reply(m, "не получилося дістати чергу... 💔😭")
@@ -107,12 +129,98 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 		return
 	}
 
-	response := "Активні запити на скачування:\n"
+	// Update found track count for each request and save to database
+	for i := range requests {
+		if requests[i].ExpectedTrackCount > 0 && len(requests[i].TrackMetadata) > 0 {
+			foundCount, err := h.compareTracks(ctx, requests[i])
+			if err != nil {
+				h.log.Error("Failed to compare tracks", zap.Error(err), zap.String("request_id", requests[i].ID))
+				continue
+			}
+			// Always update the count when /queue is called
+			requests[i].FoundTrackCount = foundCount
+			requests[i].UpdatedAt = time.Now().Unix()
+			
+			// Mark as completed if all tracks are found
+			if foundCount == requests[i].ExpectedTrackCount && requests[i].Active {
+				requests[i].Active = false
+				h.log.Info("Marking request as completed", 
+					zap.String("request_id", requests[i].ID),
+					zap.String("name", requests[i].Name),
+					zap.Int("found", foundCount),
+					zap.Int("expected", requests[i].ExpectedTrackCount))
+			}
+			
+			if err := h.db.UpdateDownloadRequest(ctx, requests[i]); err != nil {
+				h.log.Error("Failed to update found track count", zap.Error(err))
+			}
+		}
+	}
+
+	response := "Активні запити на скачування:\n\n"
 	for _, r := range requests {
-		response += fmt.Sprintf("%s: %s. Active: %v, SyncCount: %v, Errored: %v, RetryCount: %v\n", r.ID, r.Name, r.Active, r.SyncCount, r.Errored, r.RetryCount)
+		response += fmt.Sprintf("📀 %s\n", r.Name)
+		if r.ExpectedTrackCount > 0 {
+			downloaded := r.FoundTrackCount
+			remaining := r.ExpectedTrackCount - r.FoundTrackCount
+			percentage := float64(downloaded) / float64(r.ExpectedTrackCount) * 100
+
+			response += fmt.Sprintf("   ✅ Завантажено: %d/%d (%.0f%%)\n", downloaded, r.ExpectedTrackCount, percentage)
+			if remaining > 0 {
+				response += fmt.Sprintf("   ⏳ Залишилось: %d треків\n", remaining)
+			} else {
+				response += "   🎉 Всі треки завантажені!\n"
+			}
+		} else {
+			response += "   ⏳ Очікування завантаження...\n"
+		}
+
+		if r.Errored {
+			response += fmt.Sprintf("   ⚠️ Помилки: %d\n", r.RetryCount)
+		}
+		response += "\n"
 	}
 
 	h.reply(m, response)
+}
+
+// compareTracks compares expected tracks with indexed files and returns the count of found tracks
+func (h *handler) compareTracks(ctx context.Context, request models.DownloadQueueRequest) (int, error) {
+	if len(request.TrackMetadata) == 0 {
+		return 0, nil
+	}
+
+	// Extract artists and titles from track metadata
+	artists := make([]string, 0, len(request.TrackMetadata))
+	titles := make([]string, 0, len(request.TrackMetadata))
+	for _, track := range request.TrackMetadata {
+		artists = append(artists, track.Artist)
+		titles = append(titles, track.Title)
+	}
+
+	// Find matching music files in the database
+	foundMusic, err := h.db.FindMusicFiles(ctx, artists, titles)
+	if err != nil {
+		return 0, err
+	}
+
+	// Create a map for quick lookup (case-insensitive)
+	foundMap := make(map[string]bool)
+	for _, music := range foundMusic {
+		key := strings.ToLower(music.Artist) + " " + strings.ToLower(music.Title)
+		foundMap[key] = true
+	}
+
+	// Count how many expected tracks were found
+	foundCount := 0
+	for _, track := range request.TrackMetadata {
+		key := strings.ToLower(track.Artist) + " " + strings.ToLower(track.Title)
+		if foundMap[key] {
+			foundCount++
+		}
+	}
+
+	return foundCount, nil
 }
 
 func (h *handler) HandleDeactivate(m *telebot.Message) {
