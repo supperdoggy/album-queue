@@ -80,6 +80,31 @@ func main() {
 		}
 	}()
 
+	// Periodic stats logging (every 5 minutes)
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				stats, err := database.GetStats(ctx)
+				if err != nil {
+					log.Error("Failed to get stats for periodic log", zap.Error(err))
+					continue
+				}
+				log.Info("periodic_stats",
+					zap.Int64("total_music_files", stats.TotalMusicFiles),
+					zap.Int64("active_download_queue", stats.ActiveDownloadQueue),
+					zap.Int64("total_download_requests", stats.TotalDownloadRequests),
+					zap.Int64("active_playlists", stats.ActivePlaylists),
+				)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	h := handler.NewHandler(database, spotifyService, log, bot, cfg.WebhookURL, cfg.BotWhitelist)
 
 	bot.Handle("/start", h.Start)
