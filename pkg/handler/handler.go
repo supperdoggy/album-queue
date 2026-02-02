@@ -80,7 +80,14 @@ func (h *handler) HandleText(m *telebot.Message) {
 
 	ctx := context.Background()
 
-	// Get object name and track count from Spotify API
+	// Get object type, name and track count from Spotify API
+	objectType, err := h.spotifyService.GetObjectType(ctx, m.Text)
+	if err != nil {
+		h.log.Error("Failed to get object type from Spotify", zap.Error(err))
+		h.reply(m, "не получилось отримати тип об'єкта зі спотіфай, спробуй ще раз...")
+		return
+	}
+
 	name, err := h.spotifyService.GetObjectName(ctx, m.Text)
 	if err != nil {
 		h.log.Error("Failed to get object name from Spotify", zap.Error(err))
@@ -98,7 +105,7 @@ func (h *handler) HandleText(m *telebot.Message) {
 	}
 
 	// Add the download request to the database
-	err = h.db.NewDownloadRequest(ctx, m.Text, name, m.Sender.ID, trackCount, trackMetadata)
+	err = h.db.NewDownloadRequest(ctx, m.Text, name, m.Sender.ID, objectType, trackCount, trackMetadata)
 	if err != nil {
 		h.log.Error("Failed to add download request to database", zap.Error(err))
 		h.reply(m, "не получилось додати в чергу, скажи максиму шо шось не так...")
@@ -140,17 +147,17 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 			// Always update the count when /queue is called
 			requests[i].FoundTrackCount = foundCount
 			requests[i].UpdatedAt = time.Now().Unix()
-			
+
 			// Mark as completed if all tracks are found
 			if foundCount == requests[i].ExpectedTrackCount && requests[i].Active {
 				requests[i].Active = false
-				h.log.Info("Marking request as completed", 
+				h.log.Info("Marking request as completed",
 					zap.String("request_id", requests[i].ID),
 					zap.String("name", requests[i].Name),
 					zap.Int("found", foundCount),
 					zap.Int("expected", requests[i].ExpectedTrackCount))
 			}
-			
+
 			if err := h.db.UpdateDownloadRequest(ctx, requests[i]); err != nil {
 				h.log.Error("Failed to update found track count", zap.Error(err))
 			}
@@ -162,14 +169,48 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 		response += fmt.Sprintf("📀 %s\n", r.Name)
 		if r.ExpectedTrackCount > 0 {
 			downloaded := r.FoundTrackCount
-			remaining := r.ExpectedTrackCount - r.FoundTrackCount
 			percentage := float64(downloaded) / float64(r.ExpectedTrackCount) * 100
 
 			response += fmt.Sprintf("   ✅ Завантажено: %d/%d (%.0f%%)\n", downloaded, r.ExpectedTrackCount, percentage)
+
+			// Calculate missing tracks (not found and not skipped)
+			missingTracks := []spotify.TrackMetadata{}
+			skippedCount := 0
+			if len(r.TrackMetadata) > 0 {
+				for _, track := range r.TrackMetadata {
+					if !track.Found && !track.Skipped {
+						missingTracks = append(missingTracks, track)
+					} else if track.Skipped {
+						skippedCount++
+					}
+				}
+			}
+
+			remaining := len(missingTracks)
+
 			if remaining > 0 {
 				response += fmt.Sprintf("   ⏳ Залишилось: %d треків\n", remaining)
+
+				// Show first 5 tracks that need to be downloaded
+				displayCount := remaining
+				if displayCount > 5 {
+					displayCount = 5
+				}
+
+				response += "   📋 Треки для завантаження:\n"
+				for i := 0; i < displayCount; i++ {
+					track := missingTracks[i]
+					response += fmt.Sprintf("      • %s - %s\n", track.Artist, track.Title)
+				}
+				if remaining > 5 {
+					response += fmt.Sprintf("      ... та ще %d треків\n", remaining-5)
+				}
 			} else {
 				response += "   🎉 Всі треки завантажені!\n"
+			}
+
+			if skippedCount > 0 {
+				response += fmt.Sprintf("   ⚠️ Пропущено: %d треків\n", skippedCount)
 			}
 		} else {
 			response += "   ⏳ Очікування завантаження...\n"
@@ -211,9 +252,13 @@ func (h *handler) compareTracks(ctx context.Context, request models.DownloadQueu
 		foundMap[key] = true
 	}
 
-	// Count how many expected tracks were found
+	// Count how many expected tracks were found (excluding skipped tracks)
 	foundCount := 0
 	for _, track := range request.TrackMetadata {
+		// Skip counting skipped tracks
+		if track.Skipped {
+			continue
+		}
 		key := strings.ToLower(track.Artist) + " " + strings.ToLower(track.Title)
 		if foundMap[key] {
 			foundCount++

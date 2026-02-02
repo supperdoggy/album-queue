@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	uuid "github.com/satori/go.uuid"
 	models "github.com/supperdoggy/spot-models"
 	"github.com/supperdoggy/spot-models/spotify"
-	uuid "github.com/satori/go.uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -15,7 +15,7 @@ import (
 )
 
 type Database interface {
-	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, expectedTrackCount int, trackMetadata []spotify.TrackMetadata) error
+	NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, objectType spotify.SpotifyObjectType, expectedTrackCount int, trackMetadata []spotify.TrackMetadata) error
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	DeactivateRequest(ctx context.Context, id string) error
 	NewPlaylistRequest(ctx context.Context, url string, creatorID int64, noPull bool) error
@@ -56,8 +56,8 @@ func NewDatabase(ctx context.Context, log *zap.Logger, url, dbname string) (Data
 	}
 
 	return &db{
-		conn: conn,
-		log:  log,
+		conn:   conn,
+		log:    log,
 		dbname: dbname,
 
 		downloadQueueRequestCollection: conn.Database(dbname).Collection("download-queue-requests"),
@@ -74,19 +74,20 @@ func (d *db) Ping(ctx context.Context) error {
 	return d.conn.Ping(ctx, nil)
 }
 
-func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, expectedTrackCount int, trackMetadata []spotify.TrackMetadata) error {
+func (d *db) NewDownloadRequest(ctx context.Context, url, name string, creatorID int64, objectType spotify.SpotifyObjectType, expectedTrackCount int, trackMetadata []spotify.TrackMetadata) error {
 	id := uuid.NewV4()
 	request := models.DownloadQueueRequest{
-		SpotifyURL:          url,
-		Name:                name,
-		Active:              true,
-		ID:                  id.String(),
-		CreatedAt:           time.Now().Unix(),
-		UpdatedAt:           time.Now().Unix(),
-		CreatorID:           creatorID,
-		ExpectedTrackCount:  expectedTrackCount,
-		FoundTrackCount:     0,
-		TrackMetadata:       trackMetadata,
+		SpotifyURL:         url,
+		ObjectType:         objectType,
+		Name:               name,
+		Active:             true,
+		ID:                 id.String(),
+		CreatedAt:          time.Now().Unix(),
+		UpdatedAt:          time.Now().Unix(),
+		CreatorID:          creatorID,
+		ExpectedTrackCount: expectedTrackCount,
+		FoundTrackCount:    0,
+		TrackMetadata:      trackMetadata,
 	}
 
 	_, err := d.downloadQueueRequestCollection.InsertOne(ctx, request)
@@ -194,8 +195,9 @@ func (d *db) UpdateDownloadRequest(ctx context.Context, request models.DownloadQ
 			"found_track_count":    request.FoundTrackCount,
 			"track_metadata":       request.TrackMetadata,
 			"name":                 request.Name,
-			"active":              request.Active,
-			"updated_at":          request.UpdatedAt,
+			"active":               request.Active,
+			"object_type":          request.ObjectType,
+			"updated_at":           request.UpdatedAt,
 		}},
 	)
 	if err != nil {
