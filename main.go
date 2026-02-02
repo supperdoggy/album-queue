@@ -80,7 +80,7 @@ func main() {
 		}
 	}()
 
-	// Periodic stats logging (every 5 minutes)
+	// Periodic stats logging (every 30 minutes)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
