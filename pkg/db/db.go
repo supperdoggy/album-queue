@@ -19,6 +19,7 @@ type Database interface {
 	GetActiveRequests(ctx context.Context) ([]models.DownloadQueueRequest, error)
 	DeactivateRequest(ctx context.Context, id string) error
 	NewPlaylistRequest(ctx context.Context, url string, creatorID int64, noPull bool) error
+	GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error)
 	FindMusicFiles(ctx context.Context, artists, titles []string) ([]models.MusicFile, error)
 	UpdateDownloadRequest(ctx context.Context, request models.DownloadQueueRequest) error
 	Close(ctx context.Context) error
@@ -131,6 +132,22 @@ func (d *db) GetActiveRequests(ctx context.Context) ([]models.DownloadQueueReque
 	}
 
 	return requests, nil
+}
+
+func (d *db) GetActivePlaylists(ctx context.Context) ([]models.PlaylistRequest, error) {
+	var playlists []models.PlaylistRequest
+
+	cursor, err := d.playlistRequestCollection.Find(ctx, bson.M{"active": true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to find active playlists: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	if err := cursor.All(ctx, &playlists); err != nil {
+		return nil, fmt.Errorf("failed to decode playlists: %w", err)
+	}
+
+	return playlists, nil
 }
 
 func (d *db) DeactivateRequest(ctx context.Context, id string) error {
