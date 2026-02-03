@@ -131,7 +131,13 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 		return
 	}
 
-	if len(requests) == 0 {
+	playlists, err := h.db.GetActivePlaylists(ctx)
+	if err != nil {
+		h.log.Error("Failed to get active playlist requests", zap.Error(err))
+		// Continue anyway, just log the error
+	}
+
+	if len(requests) == 0 && len(playlists) == 0 {
 		h.reply(m, "немає активних запитів на скачування...")
 		return
 	}
@@ -220,6 +226,34 @@ func (h *handler) HandleQueue(m *telebot.Message) {
 			response += fmt.Sprintf("   ⚠️ Помилки: %d\n", r.RetryCount)
 		}
 		response += "\n"
+	}
+
+	// Add playlist requests
+	if len(playlists) > 0 {
+		if len(requests) > 0 {
+			response += "---\n\n"
+		}
+		response += "Активні запити на плейлисти:\n\n"
+		for _, p := range playlists {
+			// Try to get playlist name
+			playlistName, err := h.spotifyService.GetObjectName(ctx, p.SpotifyURL)
+			if err != nil {
+				h.log.Error("Failed to get playlist name", zap.Error(err))
+				playlistName = p.SpotifyURL
+			}
+
+			response += fmt.Sprintf("🎵 %s\n", playlistName)
+			response += fmt.Sprintf("   📎 URL: %s\n", p.SpotifyURL)
+			if p.NoPull {
+				response += "   ⚠️ NoPull: true (не завантажувати відсутні треки)\n"
+			} else {
+				response += "   ✅ Завантажувати відсутні треки\n"
+			}
+			if p.Errored {
+				response += fmt.Sprintf("   ⚠️ Помилки: %d\n", p.RetryCount)
+			}
+			response += "\n"
+		}
 	}
 
 	h.reply(m, response)
